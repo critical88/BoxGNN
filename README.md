@@ -2,7 +2,7 @@
 
 ### Tag Collaborative Graph
 <p align=center>
-  <img src="./TCG.png" width=600>
+  <img src="/r/BoxGNN-607F/TCG.png" width=600>
 </p>
 
 Due to time constraints, we could only sketch a rough draft. If the paper is accepted, we will refine this figure. From the figure, it is evident that everyone has a variety of preferences, such as Portable, Digital, Apple, etc., leading to the purchase of different products. At the same time, people may buy the same product for different reasons. If we directly use point embeddings to characterize the various nodes, we cannot adequately express the diversity and uncertainty of users and products.
@@ -12,13 +12,13 @@ On the other hand, traditional GNN point aggregation does not seem quite suitabl
 
 ### Distribution of Embeddings
 <p align=center>
-  <img src="./lfgcf_before_2d.jpg" width=400>
-  <img src="./lfgcf_after_2d.jpg" width=400>
+  <img src="/r/BoxGNN-607F/lfgcf_before_2d.jpg" width=400>
+  <img src="/r/BoxGNN-607F/lfgcf_after_2d.jpg" width=400>
 </p>
 
 <p align=center>
-  <img src="./BoxGNN_before_2d.jpg" width=400>
-  <img src="./BoxGNN_after_2d.jpg" width=400>
+  <img src="/r/BoxGNN-607F/BoxGNN_before_2d.jpg" width=400>
+  <img src="/r/BoxGNN-607F/BoxGNN_after_2d.jpg" width=400>
 </p>
 We visualized the distribution of the centroid points of Box on the Movielens dataset. For comparison, we also visualized the distribution of node embeddings from LFGCF. It's noteworthy that the two images on the left represent the distribution of points before the GNN operation, while the image on the right represents the distribution of points after the GNN operation. From the Figure (a), we can see that before performing GNN, nodes of the same type in the LFGCF model are close to each other. This indicates that they have a high similarity among nodes of the same type, lacking differentiation and diversity. Furthermore, from the Figure (b), it is apparent that after performing GNN, the clustering phenomenon becomes more significant.
 
