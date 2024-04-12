@@ -1,6 +1,13 @@
 # BoxGNN
 
 ### Tag Collaborative Graph
+<p align=center>
+  <img src="/TCG.png" width=600>
+</p>
+
+Due to time constraints, we could only sketch a rough draft. If the paper is accepted, we will refine this figure. From the figure, it is evident that everyone has a variety of preferences, such as Portable, Digital, Apple, etc., leading to the purchase of different products. At the same time, people may buy the same product for different reasons. If we directly use point embeddings to characterize the various nodes, we cannot adequately express the diversity and uncertainty of users and products.
+
+On the other hand, traditional GNN point aggregation does not seem quite suitable for Tag-aware Recommender System (TRS). For example, considering the "Portable" tag, it is merely an attribute of items and users. However, point aggregation would incorporate too much unnecessary information from its neighbors, which distorts its original meaning. Instead, if we represent it as a box, the "Portable" tag can be understood as a common area shared by iPads, bags, and female users, and the representation of "Portable" tag can be precisely extracted.
 
 
 ### Distribution of Embeddings
