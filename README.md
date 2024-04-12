@@ -1,5 +1,9 @@
 # BoxGNN
 
+<p align="center">
+  <img src="Fig_Motivation.pdf" width="800" />
+</p>
+
 MovieLens
 ```shell
 python main.py --dataset movielens --model box_gumbel_gcn --gumbel_beta 0.2
