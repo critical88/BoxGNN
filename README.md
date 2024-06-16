@@ -7,16 +7,16 @@ This is our PyTorch implementation for the paper:
 ### Reproducibility
 MovieLens
 ```shell
-python main.py --dataset movielens --model boxgnn --gumbel_beta 0.2
+python main.py --dataset movielens --model boxgnn --beta 0.2
 ```
 LastFm
 ```shell
-python main.py --dataset lastfm --model boxgnn --gumbel_beta 0.3
+python main.py --dataset lastfm --model boxgnn --beta 0.3
 ```
 
 E-shop
 ```shell
-python main.py --dataset e-shop --model boxgnn --gumbel_beta 0.2
+python main.py --dataset e-shop --model boxgnn --beta 0.2
 ```
 
 ### Preprocess
