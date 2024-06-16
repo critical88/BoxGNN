@@ -27,36 +27,27 @@ class CenterIntersection(nn.Module):
         nn.init.xavier_uniform_(self.layer2.weight)
 
     def forward(self, embeddings, idx, dim_size):
-        
+        ### equation (3) and (5)
         layer1_act = F.relu(self.layer1(embeddings))  # (num_conj, dim)
         layer2_act = self.layer2(layer1_act)
         attention = scatter_softmax(src=layer2_act, index=idx, dim=0)
         user_embedding = scatter_sum(attention * embeddings, index=idx, dim=0, dim_size=dim_size)
-        # embedding = torch.sum(attention * embeddings, dim=0)
-        
-        # user_embedding = scatter_mean(embeddings, index=idx, dim=0, dim_size=dim_size)
         return user_embedding
 
 class BoxOffsetIntersection(nn.Module):
-
-    def __init__(self, dim, union=False):
+    """
+    only use max/min to obtain high-order offset embeddings.
+    """
+    def __init__(self, dim):
         super(BoxOffsetIntersection, self).__init__()
-        self.dim = dim
-        self.layer1 = nn.Linear(self.dim, self.dim)
-        self.layer2 = nn.Linear(self.dim, self.dim)
-        nn.init.xavier_uniform_(self.layer1.weight)
-        nn.init.xavier_uniform_(self.layer2.weight)
-        self.union = union
 
     def forward(self, embeddings, idx, dim_size, union=False ):
-        # layer1_act = F.relu(self.layer1(embeddings))
-        # layer1_mean = scatter_mean(src=layer1_act, index=idx, dim=0, dim_size=dim_size)
-        # gate = torch.sigmoid(self.layer2(layer1_mean))
-        if not union:
-            offset = scatter_min(src=embeddings, index=idx, dim=0, dim_size=dim_size)[0]
-        else:
+        ### equation (4) and (6)
+        if  union:
             offset = scatter_max(src=embeddings, index=idx, dim=0, dim_size=dim_size)[0]
-        return offset #* gate
+        else:
+            offset = scatter_min(src=embeddings, index=idx, dim=0, dim_size=dim_size)[0]
+        return offset 
 
 class GraphConv(nn.Module):
     """
@@ -91,8 +82,6 @@ class GraphConv(nn.Module):
 
         self.center_net = CenterIntersection(self.emb_size)
         self.offset_net = BoxOffsetIntersection(self.emb_size)
-        # self.offset_min_net = BoxOffsetIntersection(self.emb_size)
-        # self.offset_max_net = BoxOffsetIntersection(self.emb_size, union=True)
         self.dropout = nn.Dropout(p=mess_dropout_rate)  # mess dropout
 
 
@@ -127,95 +116,62 @@ class GraphConv(nn.Module):
             graph = self._sparse_dropout(graph, self.node_dropout_rate)
         _indices = graph._indices()
         head, tail = _indices[0,:], _indices[1, :]
-        # head, tail = self.item2tag[:,0], self.item2tag[:,1]
-        ## all interaction is positive
-        # i2u_interacted_rel = torch.LongTensor([0]).to(self.device)
-        # i2u_rel_emb = relation_embedding[i2u_interacted_rel, :]
-        # i2u_rel_offset = relation_offset_embedding[i2u_interacted_rel, :]
-        
-        # u2i_interact_rel = torch.LongTensor([1]).to(self.device)
-        # u2i_rel_emb = relation_embedding[u2i_interact_rel, :]
-        # u2i_rel_offset = relation_offset_embedding[u2i_interact_rel, :]
 
         all_embs = torch.cat([user_emb, item_emb, tag_emb], dim=0)
         all_offset_emb = F.relu(torch.cat([user_offset_emb, item_offset_emb, tag_offset], dim=0))
         
-        # user_offset_emb = torch.zeros([self.n_users, self.emb_size]).to(self.device)
-        # item_offset_emb = torch.zeros([self.n_entities, self.emb_size]).to(self.device)
 
         agg_layer_emb = [all_embs]
         agg_layer_offset = [all_offset_emb]
 
-        # user_final_emb = [user_emb]
-        # item_final_emb = [item_emb]
-        # user_final_offset = [user_offset_emb]
-        # item_final_offset = [item_offset_emb]
 
         for _ in range(self.n_layers):
-            ## interaction
             history_embs = all_embs[tail]
+            ## all logical operation use the same controid aggregation
             agg_emb = self.center_net(history_embs, head, self.n_nodes)
 
-            user_ordinal = (head < self.n_users)
-            user_history_emb = all_offset_emb[tail[user_ordinal]]
-            # user_offset = self.offset_net(user_history_emb, head[user_ordinal], self.n_nodes, union=True)
-            # user_offset = user_offset[:self.n_users]
+            ## user offset
+            ### user-item, intersect
             inter_user_ordinal = (head < self.n_users) & (tail >= self.n_users) & (tail < self.n_users + self.n_items)
-            
-            # inter_history_embs = all_embs[tail[inter_user_ordinal]]
-            # inter_agg_emb = self.center_net(inter_history_embs, head[inter_user_ordinal], self.n_nodes)
-            # inter_user_agg, inter_item_agg,_ = torch.split(inter_agg_emb, [self.n_users, self.n_items, self.n_tags])
             
             inter_user_history_offset = F.relu(all_offset_emb[tail[inter_user_ordinal]])
             inter_user_offset_emb = self.offset_net(inter_user_history_offset, head[inter_user_ordinal], self.n_nodes)
             inter_user_offset_emb = inter_user_offset_emb[:self.n_users]
             
-            ### user-tag
+            ### user-tag, union
             user_tag_ordinal =  (head < self.n_users) & (tail >= self.n_users + self.n_items)
-
-            # ut_embs = all_embs[tail[user_tag_ordinal ]]
-            # ut_agg_emb = self.center_net(ut_embs, head[user_tag_ordinal ], self.n_nodes)
-            # ut_user_agg, _, ut_tag_agg = torch.split(ut_agg_emb, [self.n_users, self.n_items, self.n_tags])
 
             user_tag_history_offset = F.relu(all_offset_emb[tail[user_tag_ordinal]])
             ut_user_offset_emb = self.offset_net(user_tag_history_offset, head[user_tag_ordinal], self.n_nodes, union=True)
             ut_user_offset_emb = ut_user_offset_emb[:self.n_users]
+
+            ### union two part 
+            user_offset = torch.cat([inter_user_offset_emb, ut_user_offset_emb], dim=0)
+            user_offset = F.relu(self.offset_net(user_offset, self.user_union_idx, inter_user_offset_emb.shape[0]))
             
-            ### item
+            ### item offset
+            ### intersect all neighboring nodes of item
             item_ordinal = (head >= self.n_users) & (head < self.n_users + self.n_items)
 
-            # item_history_embs = all_embs[tail[item_ordinal]]
-            # item_agg = self.center_net(item_history_embs, head[item_ordinal], self.n_nodes)
-            # item_agg = item_agg[self.n_users:self.n_items + self.n_users]
             item_history_offset = F.relu(all_offset_emb[tail[item_ordinal]])
             item_offset = self.offset_net(item_history_offset, head[item_ordinal], self.n_nodes, union=True)
             item_offset = item_offset[self.n_users:self.n_users + self.n_items]
             
-            ### tag
+            ### tag offset
+            ### union all neighboring nodes of tag
             tag_ordinal = (head >= self.n_users + self.n_items) 
 
-            # tag_history_embs = all_embs[tail[tag_ordinal]]
-            # tag_agg = self.center_net(tag_history_embs, head[tag_ordinal], self.n_nodes)
-            # tag_agg = tag_agg[self.n_items + self.n_users:]
             tag_history_offset = F.relu(all_offset_emb[tail[tag_ordinal]])
             tag_offset = self.offset_net(tag_history_offset, head[tag_ordinal], self.n_nodes)
             tag_offset = tag_offset[self.n_users + self.n_items:]
-            # user_agg = (inter_user_agg + ut_user_agg) / 2
-            user_offset = torch.cat([inter_user_offset_emb, ut_user_offset_emb], dim=0)
-            user_offset = F.relu(self.offset_net(user_offset, self.user_union_idx, inter_user_offset_emb.shape[0]))
-            # user_agg, user_offset = self.union([inter_user_agg,ut_user_agg], [inter_user_offset_emb, ut_user_offset_emb], self.user_union_idx)
-            
-            # agg_emb = torch.cat([user_agg, item_agg, tag_agg], dim=0)
-            agg_emb = F.normalize(agg_emb)
-            agg_offset_emb = F.relu(torch.cat([user_offset, item_offset, tag_offset], dim=0))
-            
-            agg_offset_emb = torch.cat([agg_offset_emb, all_offset_emb], dim=0)
-            agg_offset_emb = F.relu(self.offset_net(agg_offset_emb, self.all_union_idx, all_offset_emb.shape[0], union=True))
-            
-            # agg_offset_emb = torch.max(all_offset_emb, agg_offset_emb)
-            # agg_emb, agg_offset_emb = self.union([all_embs, agg_emb], [all_offset_emb, agg_offset_emb], self.all_union_idx)
-            # agg_emb = all_embs + agg_emb
 
+            agg_emb = F.normalize(agg_emb)
+
+            agg_offset_emb = F.relu(torch.cat([user_offset, item_offset, tag_offset], dim=0))
+            # agg_offset_emb = torch.cat([agg_offset_emb, all_offset_emb], dim=0)
+            # agg_offset_emb = F.relu(self.offset_net(agg_offset_emb, self.all_union_idx, all_offset_emb.shape[0], union=True))
+            
+            
             agg_layer_emb.append(agg_emb)
             agg_layer_offset.append(agg_offset_emb)
             
@@ -342,6 +298,7 @@ class Recommender(nn.Module):
         user_offset, item_offset, tag_offset = torch.split(self.all_offset, [self.n_users, self.n_items, self.n_tags])
         batch_size = user.shape[0]
 
+        ### use logical operation to simulate the GNN.
         user_agg_embs, user_agg_offsets, item_agg_embs, item_agg_offset, tag_agg_emb, tag_agg_offset = \
             self.gcn(user_emb, user_offset, item_emb, item_offset, tag_emb, tag_offset, self.graph)
 
@@ -349,13 +306,14 @@ class Recommender(nn.Module):
         pos_item_embs, pos_item_offset = item_agg_embs[pos_item], item_agg_offset[pos_item]
         neg_item_embs, neg_item_offset = item_agg_embs[neg_item.view(-1)], item_agg_offset[neg_item.view(-1)]
 
-        ### Main Loss
+        ### use gumbel-distribution to calculate volume of the intersection box between user and pos/neg item embs.
         pos_scores = self.cal_logit_box(pos_user_embs, pos_user_offsets, pos_item_embs, pos_item_offset)
         neg_scores = self.cal_logit_box(pos_user_embs, pos_user_offsets, neg_item_embs, neg_item_offset)
         
+        ### BPR
         mf_loss = -1 * torch.mean(nn.LogSigmoid()(pos_scores - neg_scores))
         
-
+        ## regularization
         regularizer = ( torch.norm(user_emb[user]) ** 2
                        + torch.norm(item_emb[pos_item]) ** 2
                        + torch.norm(item_emb[neg_item.reshape(-1)]) ** 2) / 2
@@ -363,7 +321,7 @@ class Recommender(nn.Module):
         
         return mf_loss + emb_loss  , mf_loss, emb_loss
 
-    def generate(self, users):
+    def generate(self):
         user_emb, item_emb, tag_emb = torch.split(self.all_embed, [self.n_users, self.n_items, self.n_tags])
         user_offset, item_offset, tag_offset= torch.split(self.all_offset, [self.n_users, self.n_items, self.n_tags])
         user_agg_embs, user_agg_offset, item_agg_embs, item_agg_offset, tag_agg_embs, tag_agg_offset = \

@@ -106,12 +106,7 @@ def test(model, args, dataset, train_user_set, test_user_set, data_stat):
     n_test_users = len(test_users)
     n_user_batchs = n_test_users // u_batch_size + 1
     count = 0
-    if args.model.__contains__("box"):
-        # histories = retrieve_all_histories(test_users, n_users, graph, device)
-        users = torch.LongTensor(test_users).to(device)
-        embs = model.generate(users,)
-    else:
-        embs = model.generate()
+    embs = model.generate()
 
     user_gcn_emb, entity_gcn_emb = embs
     
@@ -124,7 +119,8 @@ def test(model, args, dataset, train_user_set, test_user_set, data_stat):
         u_g_embeddings = user_gcn_emb[user_batch]
 
         if args.eval_rnd_neg:
-            ### 随机选取100个负样本（已去重和去除训练集内容）
+            ### evaluate performance in 100 negative items.
+            ### randomly select 100 negative samples 
             negatives = dataset.negative_sampling(user_batch, 100)
 
             neg_items = torch.LongTensor(negatives).to(device)
@@ -139,6 +135,7 @@ def test(model, args, dataset, train_user_set, test_user_set, data_stat):
             u_g_embeddings = u_g_embeddings.unsqueeze(1).expand(u_g_embeddings.shape[0], all_items.shape[1], u_g_embeddings.shape[1])
             rate_batch = model.rating(u_g_embeddings, i_g_embddings, same_dim=True).detach()
         else:
+            ### evaluate performance among all items
             all_items = torch.LongTensor(np.array(range(0, n_items))).to(device)
             if batch_test_flag:
                 # batch-item test
