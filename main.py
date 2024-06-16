@@ -66,11 +66,8 @@ def train(args):
     train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=args.batch_size)
     
 
-    if args.model =="box_gcn":
-        from models.BoxGCN import Recommender
-        model = Recommender(args, data_stat, norm_mat, user2tag, item2tag)
-    elif args.model =="box_gumbel_gcn":
-        from models.BoxGCN_gumbel import Recommender
+    if args.model =="boxgnn":
+        from models.BoxGNN import Recommender
         model = Recommender(args, data_stat, norm_mat, user2tag, item2tag)
     elif args.model == "lightgcn":
         from models.LightGCN import Recommender

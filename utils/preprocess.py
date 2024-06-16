@@ -3,18 +3,16 @@ import numpy as np
 import os
 from collections import defaultdict
 
+
+"""
+lastfm: user_taggedartists-timestamps.dat
+
+movielens: user_taggedmovies-timestamps.dat
+
+these two files can be found in https://grouplens.org/datasets/hetrec-2011
+"""
 np.random.seed(2022)
 datasets = [
-{
-    "name": "delicious",
-    "file": "user_taggedbookmarks-timestamps.dat",
-    "user_col": "userID",
-    "item_col": "bookmarkID",
-    "tag_col": "tagID",
-    "item_file": "bookmarks.dat",
-    "item_title_col": "title",
-    "freq_min": 15
-},
 {
     "name": "lastfm",
     "file": "user_taggedartists-timestamps.dat",

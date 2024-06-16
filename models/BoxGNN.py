@@ -1,9 +1,9 @@
 '''
-Created on July 1, 2020
-PyTorch Implementation of KGIN
-@author: Tinglin Huang (tinglin.huang@zju.edu.cn)
+Created on January 1, 2024
+PyTorch Implementation of BoxGNN
+@author: FakeLin (linfake@mail.ustc.edu.cn)
 '''
-__author__ = "huangtinglin"
+__author__ = "linfake"
 
 import random
 import numpy as np
