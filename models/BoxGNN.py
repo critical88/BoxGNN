@@ -247,7 +247,6 @@ class Recommender(nn.Module):
         self.decay = args.l2
         self.emb_size = args.dim
         self.n_layers = args.context_hops
-        self.gumbel_beta = args.gumbel_beta
         self.logit_cal = args.logit_cal
         self.node_dropout = args.node_dropout
         self.node_dropout_rate = args.node_dropout_rate
@@ -309,7 +308,7 @@ class Recommender(nn.Module):
     
     def cal_logit_box(self, user_center_embedding, user_offset_embedding, item_center_embedding, item_offset_embedding, training=True):
         if self.logit_cal == "box":
-            gumbel_beta = self.gumbel_beta
+            gumbel_beta = self.beta
             t1z, t1Z = user_center_embedding - user_offset_embedding, user_center_embedding + user_offset_embedding
             t2z, t2Z = item_center_embedding - item_offset_embedding, item_center_embedding + item_offset_embedding
             z = gumbel_beta * torch.logaddexp(
